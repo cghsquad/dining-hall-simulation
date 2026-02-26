@@ -55,3 +55,73 @@ class SimulationController:
         print("=== FINAL METRICS ===")
         print(self.metrics.report())
 
+    def handle_arrival(self) -> None:
+        # Create student
+        sid = self._next_student_id
+        self._next_student_id += 1
+
+        s = Student(student_id=sid, arrival_time=self.current_time)
+        self.students[sid] = s
+        self.metrics.record_arrival()
+
+        # Decide: start service or queue
+        if self.station.has_free_server():
+            self.station.busy_servers += 1
+            s.service_start_time = self.current_time
+            end_t = self.current_time + self.service_time
+            self.schedule(Event(time=end_t, type=EventType.SERVICE_END, student_id=sid))
+            print(
+                f"  ARRIVAL Student {sid}: start service immediately; "
+                f"busy={self.station.busy_servers}/{self.station.servers}; end@{end_t:.2f}"
+            )
+        else:
+            self.station.queue_len += 1
+            print(
+                f"  ARRIVAL Student {sid}: queued; queue_len={self.station.queue_len}; "
+                f"busy={self.station.busy_servers}/{self.station.servers}"
+            )
+
+        # Schedule next arrival (if still before end_time)
+        next_arrival_time = self.current_time + self.interarrival
+        if next_arrival_time < self.end_time:
+            self.schedule(Event(time=next_arrival_time, type=EventType.ARRIVAL))
+            print(f"  scheduled next ARRIVAL @ t={next_arrival_time:.2f}")
+
+    def handle_service_end(self, sid: int | None) -> None:
+        if sid is None:
+            return
+
+        s = self.students[sid]
+        s.departure_time = self.current_time
+        self.metrics.record_departure(s)
+
+        # Free a server
+        self.station.busy_servers = max(0, self.station.busy_servers - 1)
+
+        wq = (s.service_start_time - s.arrival_time) if s.service_start_time is not None else 0.0
+        w = s.departure_time - s.arrival_time
+
+        print(
+            f"  SERVICE_END Student {sid}: Wq={wq:.2f}, W={w:.2f}; "
+            f"busy={self.station.busy_servers}/{self.station.servers}"
+        )
+
+        # If someone is waiting, start next service immediately (placeholder behavior)
+        if self.station.queue_len > 0:
+            self.station.queue_len -= 1
+
+            # Create a “next” student placeholder: in Step 3 we will store actual queued students.
+            next_sid = self._next_student_id
+            self._next_student_id += 1
+            ns = Student(student_id=next_sid, arrival_time=self.current_time)  # placeholder
+            ns.service_start_time = self.current_time
+            self.students[next_sid] = ns
+
+            self.station.busy_servers += 1
+            end_t = self.current_time + self.service_time
+            self.schedule(Event(time=end_t, type=EventType.SERVICE_END, student_id=next_sid))
+
+            print(
+                f"  dequeued -> start service Student {next_sid}; queue_len={self.station.queue_len}; "
+                f"busy={self.station.busy_servers}/{self.station.servers}; end@{end_t:.2f}"
+            )
