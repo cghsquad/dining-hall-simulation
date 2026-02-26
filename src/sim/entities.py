@@ -14,7 +14,7 @@ class FoodStation:
     station_id: int
     servers: int = 1
     busy_servers: int = 0
-    queue_len: int = 0
+    waiting_count: int = 0
 
     def has_free_server(self) -> bool:
         return self.busy_servers < self.servers

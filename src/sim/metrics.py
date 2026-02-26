@@ -15,10 +15,10 @@ class Metrics:
 
     def record_departure(self, s: Student) -> None:
         self.total_departures += 1
-        wq = (s.service_start_time - s.arrival_time) if s.service_start_time is not None else 0.0
-        w = (s.departure_time - s.arrival_time) if s.departure_time is not None else 0.0
-        self.sum_wq += wq
-        self.sum_w += w
+        wait_in_queue = (s.service_start_time - s.arrival_time) if s.service_start_time is not None else 0.0
+        total_wait = (s.departure_time - s.arrival_time) if s.departure_time is not None else 0.0
+        self.sum_wq += wait_in_queue
+        self.sum_w += total_wait
 
     def report(self) -> str:
         avg_wq = self.sum_wq / self.total_departures if self.total_departures else 0.0

@@ -22,8 +22,8 @@ class SimulationController:
         self.students: Dict[int, Student] = {}
 
         # Step 2 constants (we’ll upgrade to λ(t) in Step 3)
-        self.interarrival: float = 1.0   # minutes
-        self.service_time: float = 2.0   # minutes
+        self.interarrival: float = 1.0  # minutes
+        self.service_time: float = 2.0  # minutes
 
     def schedule(self, e: Event) -> None:
         heapq.heappush(self.fel, e)
@@ -75,9 +75,9 @@ class SimulationController:
                 f"busy={self.station.busy_servers}/{self.station.servers}; end@{end_t:.2f}"
             )
         else:
-            self.station.queue_len += 1
+            self.station.waiting_count += 1
             print(
-                f"  ARRIVAL Student {sid}: queued; queue_len={self.station.queue_len}; "
+                f"  ARRIVAL Student {sid}: queued; queue_len={self.station.waiting_count}; "
                 f"busy={self.station.busy_servers}/{self.station.servers}"
             )
 
@@ -107,8 +107,8 @@ class SimulationController:
         )
 
         # If someone is waiting, start next service immediately (placeholder behavior)
-        if self.station.queue_len > 0:
-            self.station.queue_len -= 1
+        if self.station.waiting_count > 0:
+            self.station.waiting_count -= 1
 
             # Create a “next” student placeholder: in Step 3 we will store actual queued students.
             next_sid = self._next_student_id
@@ -122,6 +122,6 @@ class SimulationController:
             self.schedule(Event(time=end_t, type=EventType.SERVICE_END, student_id=next_sid))
 
             print(
-                f"  dequeued -> start service Student {next_sid}; queue_len={self.station.queue_len}; "
+                f"  dequeued -> start service Student {next_sid}; queue_len={self.station.waiting_count}; "
                 f"busy={self.station.busy_servers}/{self.station.servers}; end@{end_t:.2f}"
             )
