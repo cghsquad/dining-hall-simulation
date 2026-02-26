@@ -1,6 +1,7 @@
 from __future__ import annotations
 import heapq
 import random
+import math
 from typing import Dict, List
 
 from .event import Event, EventType
@@ -21,8 +22,12 @@ class SimulationController:
         self._next_student_id: int = 1
         self.students: Dict[int, Student] = {}
 
-        # Step 2 constants (we’ll upgrade to λ(t) in Step 3)
-        self.interarrival: float = 1.0  # minutes
+        self.lambda_off: float = 0.30     # off-peak rate
+        self.lambda_peak: float = 1.20    # peak rate
+
+        # Peak window(s) [start, end)
+        self.peak_start: float = 5.0
+        self.peak_end: float = 12.0
         self.service_time: float = 2.0  # minutes
 
     def schedule(self, e: Event) -> None:
@@ -55,6 +60,25 @@ class SimulationController:
         print("=== FINAL METRICS ===")
         print(self.metrics.report())
 
+    def lambda_at(self, t: float) -> float:
+        """Piecewise-constant arrival rate λ(t) in students/minute."""
+        if self.peak_start <= t < self.peak_end:
+            return self.lambda_peak
+        return self.lambda_off
+
+    def sample_interarrival(self, lam: float) -> float:
+        """
+        If arrivals are Poisson with rate λ, interarrival times are Exp(λ).
+        Sample Exp(λ):  T = -ln(U)/λ
+        """
+        if lam <= 0:
+            # Safety: avoid division by zero; treat as "no arrivals"
+            return float("inf")
+        u = self.rng.random()
+        # u in (0,1); protect against log(0)
+        u = max(u, 1e-12)
+        return -math.log(u) / lam
+
     def handle_arrival(self) -> None:
         # Create student
         sid = self._next_student_id
@@ -81,11 +105,19 @@ class SimulationController:
                 f"busy={self.station.busy_servers}/{self.station.servers}"
             )
 
-        # Schedule next arrival (if still before end_time)
-        next_arrival_time = self.current_time + self.interarrival
+        # Schedule next arrival using piecewise λ(t)
+        lam = self.lambda_at(self.current_time)
+        delta = self.sample_interarrival(lam)
+        next_arrival_time = self.current_time + delta
+
         if next_arrival_time < self.end_time:
             self.schedule(Event(time=next_arrival_time, type=EventType.ARRIVAL))
-            print(f"  scheduled next ARRIVAL @ t={next_arrival_time:.2f}")
+            print(
+                f"  scheduled next ARRIVAL @ t={next_arrival_time:.2f} "
+                f"(lambda={lam:.2f}/min, interarrival={delta:.2f})"
+            )
+        else:
+            print(f"  next ARRIVAL would be after endTime (lambda={lam:.2f}/min)")
 
     def handle_service_end(self, sid: int | None) -> None:
         if sid is None:
