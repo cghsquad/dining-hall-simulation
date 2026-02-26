@@ -75,9 +75,9 @@ class SimulationController:
                 f"busy={self.station.busy_servers}/{self.station.servers}; end@{end_t:.2f}"
             )
         else:
-            self.station.waiting_count += 1
+            self.station.queue.append(sid)
             print(
-                f"  ARRIVAL Student {sid}: queued; queue_len={self.station.waiting_count}; "
+                f"  ARRIVAL Student {sid}: queued; queue_len={self.station.queue_length()}; "
                 f"busy={self.station.busy_servers}/{self.station.servers}"
             )
 
@@ -106,22 +106,19 @@ class SimulationController:
             f"busy={self.station.busy_servers}/{self.station.servers}"
         )
 
-        # If someone is waiting, start next service immediately (placeholder behavior)
-        if self.station.waiting_count > 0:
-            self.station.waiting_count -= 1
+        # If someone is waiting, start next service immediately (REAL queue)
+        if self.station.queue_length() > 0:
+            next_sid = self.station.queue.popleft()
+            ns = self.students[next_sid]
 
-            # Create a “next” student placeholder: in Step 3 we will store actual queued students.
-            next_sid = self._next_student_id
-            self._next_student_id += 1
-            ns = Student(student_id=next_sid, arrival_time=self.current_time)  # placeholder
-            ns.service_start_time = self.current_time
-            self.students[next_sid] = ns
-
+            # start service now
             self.station.busy_servers += 1
+            ns.service_start_time = self.current_time
+
             end_t = self.current_time + self.service_time
             self.schedule(Event(time=end_t, type=EventType.SERVICE_END, student_id=next_sid))
 
             print(
-                f"  dequeued -> start service Student {next_sid}; queue_len={self.station.waiting_count}; "
+                f"  dequeued -> start service Student {next_sid}; queue_len={self.station.queue_length()}; "
                 f"busy={self.station.busy_servers}/{self.station.servers}; end@{end_t:.2f}"
             )
