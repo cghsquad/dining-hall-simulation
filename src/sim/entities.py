@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from collections import deque
 from typing import Deque
 
+
 @dataclass
 class Student:
     student_id: int
