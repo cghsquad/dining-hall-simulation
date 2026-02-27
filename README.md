@@ -57,7 +57,7 @@ python -m src.main
 
 2. 
 ```bash
-   python src/main.py
-   ```
+python src/main.py
+```
 
 3. Open src/main.py and click Run (PyCharm/IntelliJ/VS Code), or right-click the file and select Run 'main'.
