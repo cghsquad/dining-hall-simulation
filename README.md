@@ -33,7 +33,7 @@ Discrete-event simulation (DES) prototype of a dining hall queueing system. The 
 - **Python:** 3.10+ 
 - **Packages:** see `requirements.txt`
   
-- - Note: Most IDEs also have a built-in option to Clone a GitHub Repository
+- Note: Most IDEs also have a built-in option to Clone a GitHub Repository
 
 ### Using GitHub (clone the repo)
 1. Copy the repository URL from GitHub (green **Code** button).
