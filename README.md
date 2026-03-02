@@ -32,6 +32,8 @@ Discrete-event simulation (DES) prototype of a dining hall queueing system. The 
 ### Dependencies and versions
 - **Python:** 3.10+ 
 - **Packages:** see `requirements.txt`
+  
+- - Note: Most IDEs also have a built-in option to Clone a GitHub Repository
 
 ### Using GitHub (clone the repo)
 1. Copy the repository URL from GitHub (green **Code** button).
@@ -39,25 +41,16 @@ Discrete-event simulation (DES) prototype of a dining hall queueing system. The 
    ```bash
    git clone <YOUR_GITHUB_REPO_URL>
    cd <YOUR_REPO_FOLDER>
-
-### Step-by-step setup
-1. Clone the repo and enter the project folder:
-   ```bash
-   git clone <YOUR_REPO_URL>
-   cd <YOUR_REPO_FOLDER>
+   
+- Note: This repository clones into a folder named Dining-Hall-Simulation.
    
 ### How to Run
 1. ### How to run the simulation
 From the project root:
 
-1.
-```bash 
-python -m src.main
-```
-
-2. 
+1. 
 ```bash
-python src/main.py
+python3 src/main.py
 ```
 
-3. Open src/main.py and click Run (PyCharm/IntelliJ/VS Code), or right-click the file and select Run 'main'.
+2. Open src/main.py and click Run (PyCharm/IntelliJ/VS Code), or right-click the file and select Run 'main'.
