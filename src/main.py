@@ -1,18 +1,32 @@
-from sim.simulation_controller import SimulationController
+import argparse
+from src.sim.config import load_config, SimConfig, save_config_snapshot
+from src.sim.simulation_controller import SimulationController
 
 
 def main() -> None:
-    sim = SimulationController(seed=1)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=str, default=None, help="Path to config.json")
+    parser.add_argument("--outdir", type=str, default="outputs", help="Output directory")
 
-    # Configurable parameters
-    sim.lambda_off = 0.30  # off-peak arrivals per minute
-    sim.lambda_peak = 1.20  # peak arrivals per minute
-    sim.peak_start = 5.0  # minutes
-    sim.peak_end = 12.0  # minutes
-    sim.service_time = 2.0  # mean service time (minutes)
-    end_time = 20.0  # simulation length (minutes)
+    # NEW: quick overrides (optional)
+    parser.add_argument("--seed", type=int, default=None, help="Override RNG seed")
+    parser.add_argument("--run_id", type=str, default="001", help="Run identifier (for filenames)")
 
-    sim.run_simulation(end_time=end_time)
+    args = parser.parse_args()
+
+    cfg = load_config(args.config) if args.config else SimConfig()
+
+    # Apply overrides if provided
+    if args.seed is not None:
+        cfg.seed = args.seed
+
+    cfg.validate()
+
+    # Save snapshot (unique per run_id + seed)
+    save_config_snapshot(cfg, f"{args.outdir}/run_{args.run_id}_seed{cfg.seed}_config.json")
+
+    sim = SimulationController(cfg)
+    sim.run_simulation(end_time=cfg.end_time)
 
 
 if __name__ == "__main__":

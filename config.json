@@ -1,0 +1,10 @@
+{
+  "seed": 1,
+  "end_time": 20.0,
+  "lambda_off": 0.30,
+  "lambda_peak": 1.20,
+  "peak_start": 5.0,
+  "peak_end": 12.0,
+  "service_time": 2.0,
+  "servers": 1
+}

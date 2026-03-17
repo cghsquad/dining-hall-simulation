@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import heapq
 import random
 import math
@@ -7,45 +8,48 @@ from typing import Dict, List
 from .event import Event, EventType
 from .entities import Student, FoodStation
 from .metrics import Metrics
+from .config import SimConfig
 
 
 class SimulationController:
-    def __init__(self, seed: int = 1) -> None:
+    def __init__(self, cfg: SimConfig) -> None:
+        cfg.validate()
+        self.cfg = cfg
+
         self.current_time: float = 0.0
-        self.end_time: float = 0.0
-        self.fel: List[Event] = []  # heapq priority queue
-        self.rng = random.Random(seed)
+        self.end_time: float = cfg.end_time
+        self.fel: List[Event] = []     # heapq priority queue
+        self.rng = random.Random(cfg.seed)
 
         self.metrics = Metrics()
-        self.station = FoodStation(station_id=0, servers=1)
+        self.station = FoodStation(station_id=0, servers=cfg.servers)
 
         self._next_student_id: int = 1
         self.students: Dict[int, Student] = {}
 
-        self.lambda_off: float = 0.30     # off-peak rate
-        self.lambda_peak: float = 1.20    # peak rate
+        # arrival params from cfg
+        self.lambda_off: float = cfg.lambda_off
+        self.lambda_peak: float = cfg.lambda_peak
+        self.peak_start: float = cfg.peak_start
+        self.peak_end: float = cfg.peak_end
 
-        # Peak window(s) [start, end)
-        self.peak_start: float = 5.0
-        self.peak_end: float = 12.0
-        self.service_time: float = 2.0  # minutes
+        # service params from cfg
+        self.service_time: float = cfg.service_time
 
     def schedule(self, e: Event) -> None:
         heapq.heappush(self.fel, e)
 
-    def run_simulation(self, end_time: float) -> None:
-        self.end_time = end_time
+    def run_simulation(self, end_time: float | None = None) -> None:
+        self.end_time = self.cfg.end_time if end_time is None else end_time
 
-        # Initial events
         self.schedule(Event(time=0.0, type=EventType.ARRIVAL))
-        self.schedule(Event(time=end_time, type=EventType.END_SIM))
+        self.schedule(Event(time=self.end_time, type=EventType.END_SIM))
 
-        print(f"=== START SIM end_time={end_time} ===")
+        print(f"=== START SIM end_time={self.end_time} seed={self.cfg.seed} ===")
 
         while self.fel:
             e = heapq.heappop(self.fel)
             self.current_time = e.time
-
             print(f"[POP] t={self.current_time:.2f} type={e.type.name} student={e.student_id}")
 
             if e.type == EventType.END_SIM:
