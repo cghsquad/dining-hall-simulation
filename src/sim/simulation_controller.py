@@ -18,7 +18,7 @@ class SimulationController:
 
         self.current_time: float = 0.0
         self.end_time: float = cfg.end_time
-        self.fel: List[Event] = []     # heapq priority queue
+        self.fel: List[Event] = []  # heapq priority queue
         self.rng = random.Random(cfg.seed)
 
         self.metrics = Metrics()
@@ -123,6 +123,20 @@ class SimulationController:
         else:
             print(f"  next ARRIVAL would be after endTime (lambda={lam:.2f}/min)")
 
+    def _start_service(self, sid: int) -> None:
+        """Start service for sid immediately at current_time and schedule SERVICE_END."""
+        s = self.students[sid]
+        self.station.busy_servers += 1
+        s.service_start_time = self.current_time
+
+        end_t = self.current_time + self.service_time
+        self.schedule(Event(time=end_t, type=EventType.SERVICE_END, student_id=sid))
+
+        print(
+            f"  start service Student {sid}; queue_len={self.station.queue_length()}; "
+            f"busy={self.station.busy_servers}/{self.station.servers}; end@{end_t:.2f}"
+        )
+
     def handle_service_end(self, sid: int | None) -> None:
         if sid is None:
             return
@@ -142,19 +156,7 @@ class SimulationController:
             f"busy={self.station.busy_servers}/{self.station.servers}"
         )
 
-        # If someone is waiting, start next service immediately (REAL queue)
-        if self.station.queue_length() > 0:
+        # Fill ALL available servers from the queue (multi-server M/M/c behavior)
+        while self.station.has_free_server() and self.station.queue_length() > 0:
             next_sid = self.station.queue.popleft()
-            ns = self.students[next_sid]
-
-            # start service now
-            self.station.busy_servers += 1
-            ns.service_start_time = self.current_time
-
-            end_t = self.current_time + self.service_time
-            self.schedule(Event(time=end_t, type=EventType.SERVICE_END, student_id=next_sid))
-
-            print(
-                f"  dequeued -> start service Student {next_sid}; queue_len={self.station.queue_length()}; "
-                f"busy={self.station.busy_servers}/{self.station.servers}; end@{end_t:.2f}"
-            )
+            self._start_service(next_sid)
