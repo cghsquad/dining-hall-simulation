@@ -6,6 +6,7 @@ from typing import Deque
 @dataclass
 class Student:
     student_id: int
+    station_id: int
     arrival_time: float
     service_start_time: float | None = None
     departure_time: float | None = None

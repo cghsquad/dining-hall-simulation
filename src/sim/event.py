@@ -14,6 +14,8 @@ class Event:
     time: float
     type: EventType = field(compare=False)
     student_id: int | None = field(default=None, compare=False)
+    station_id: int | None = field(default=None, compare=False)
+
 
     def __lt__(self, other: Event) -> bool:
         return self.time < other.time

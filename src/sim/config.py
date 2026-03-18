@@ -21,6 +21,9 @@ class SimConfig:
     service_time: float = 2.0  # mean service time (minutes)
     servers: int = 1           # M/M/c: c servers
 
+    num_stations: int = 1
+    stations_servers: list[int] | None = None
+    
     # future switches (safe defaults)
     routing_policy: str = "single"   # later: shortest_queue / weighted_random
     balking_enabled: bool = False
