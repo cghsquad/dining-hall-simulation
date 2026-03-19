@@ -82,6 +82,8 @@ class SimulationController:
                 self.handle_arrival()
             elif e.type == EventType.SERVICE_END:
                 self.handle_service_end(e.student_id, e.station_id)
+            elif e.type == EventType.BALK_CHECK:
+                self.handle_balk_check(e.student_id, e.station_id)
 
         print("=== FINAL METRICS ===")
         print(self.metrics.report(sim_duration=self.end_time, stations=self.stations))
@@ -154,30 +156,45 @@ class SimulationController:
                 f"busy={st.busy_servers}/{st.servers}; end@{end_t:.2f}"
             )
         else:
-            # --- Step 4: BalkingModel (optional via config) ---
-            balked = False
+            # --- Immediate balking: student sees the line and leaves ---
             if self.cfg.balking_enabled:
                 wq_est = self._estimated_wait(st)
                 if wq_est > self.cfg.balk_tau and self.rng.random() < self.cfg.balk_p:
                     self.metrics.record_balk()
-                    # Optional cleanup so self.students doesn't grow forever
                     del self.students[sid]
                     print(
                         f"  BALK Student {sid} @ Station {st.station_id}: "
                         f"estWq={wq_est:.2f} > tau={self.cfg.balk_tau:.2f} "
                         f"(p={self.cfg.balk_p:.2f}) -> leaves"
                     )
-                    balked = True
+                    # Student is gone — still schedule the next arrival, then exit
+                    self._schedule_next_arrival()
+                    return
 
-            if not balked:
-                st.queue.append(sid)
-                print(
-                    f"  ARRIVAL Student {sid} -> Station {st.station_id}: queued; "
-                    f"queue_len={st.queue_length()}; "
-                    f"busy={st.busy_servers}/{st.servers}"
-                )
+            # Student joins the queue
+            st.queue.append(sid)
+            print(
+                f"  ARRIVAL Student {sid} -> Station {st.station_id}: queued; "
+                f"queue_len={st.queue_length()}; "
+                f"busy={st.busy_servers}/{st.servers}"
+            )
 
-        # Schedule next arrival using piecewise λ(t)
+            # --- Reneging: schedule a patience check at t + tau ---
+            if self.cfg.balking_enabled:
+                check_t = self.current_time + self.cfg.balk_tau
+                if check_t < self.end_time:
+                    self.schedule(Event(
+                        time=check_t,
+                        type=EventType.BALK_CHECK,
+                        student_id=sid,
+                        station_id=st.station_id
+                    ))
+                    print(f"  scheduled BALK_CHECK for Student {sid} @ Station {st.station_id} at t={check_t:.2f}")
+
+        self._schedule_next_arrival()
+
+    def _schedule_next_arrival(self) -> None:
+        """Schedule the next ARRIVAL event using piecewise λ(t)."""
         lam = self.lambda_at(self.current_time)
         delta = self.sample_interarrival(lam)
         next_arrival_time = self.current_time + delta
@@ -190,6 +207,47 @@ class SimulationController:
             )
         else:
             print(f"  next ARRIVAL would be after endTime (lambda={lam:.2f}/min)")
+
+    def handle_balk_check(self, sid: int | None, station_id: int | None) -> None:
+        if sid is None or station_id is None:
+            return
+        if station_id not in self.stations:
+            return
+        if sid not in self.students:
+            return
+
+        st = self.stations[station_id]
+        s = self.students[sid]
+
+        # If service already started or they already departed, ignore
+        if s.service_start_time is not None or s.departure_time is not None:
+            return
+
+        # If they are no longer in this station's queue, ignore
+        # (they might have been served already or removed)
+        if sid not in st.queue:
+            return
+
+        waited_so_far = self.current_time - s.arrival_time
+
+        # Only balk if they've waited at least tau (should be true, but keep safe)
+        if waited_so_far < self.cfg.balk_tau:
+            return
+
+        # Probabilistic balk decision
+        if self.rng.random() < self.cfg.balk_p:
+            # remove from queue (deque remove is OK for now)
+            st.queue.remove(sid)
+
+            self.metrics.record_balk()
+            # optional cleanup so students dict doesn't grow forever
+            del self.students[sid]
+
+            print(
+                f"  BALK Student {sid} @ Station {station_id}: "
+                f"waited={waited_so_far:.2f} >= tau={self.cfg.balk_tau:.2f} "
+                f"(p={self.cfg.balk_p:.2f}) -> leaves"
+            )
 
     def _start_service(self, sid: int, station: FoodStation) -> None:
         """Start service for sid immediately at current_time and schedule SERVICE_END."""
