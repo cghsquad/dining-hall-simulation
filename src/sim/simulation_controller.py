@@ -64,7 +64,14 @@ class SimulationController:
 
         while self.fel:
             e = heapq.heappop(self.fel)
+
+            prev_time = self.current_time
             self.current_time = e.time
+            dt = self.current_time - prev_time
+
+            # Step 4: accumulate busy time over the time jump
+            self.metrics.accumulate_busy_time(self.stations, dt)
+
             print(f"[POP] t={self.current_time:.2f} type={e.type.name} student={e.student_id}")
 
             if e.type == EventType.END_SIM:
@@ -77,7 +84,7 @@ class SimulationController:
                 self.handle_service_end(e.student_id, e.station_id)
 
         print("=== FINAL METRICS ===")
-        print(self.metrics.report())
+        print(self.metrics.report(sim_duration=self.end_time, stations=self.stations))
 
     def lambda_at(self, t: float) -> float:
         """Piecewise-constant arrival rate λ(t) in students/minute."""
@@ -104,6 +111,18 @@ class SimulationController:
             sid = self.routing.select_station_id(self.stations, self.rng)
             return self.stations[sid]
         return self.stations[0]
+
+    def _estimated_wait(self, st: FoodStation) -> float:
+        """
+        Simple wait estimate for balking:
+        - if a server is free, estimated wait is 0
+        - else approximate wait ~ (queue_len / servers) * mean_service_time
+        """
+        if st.has_free_server():
+            return 0.0
+        q = st.queue_length()
+        servers = max(1, st.servers)
+        return (q / servers) * self.service_time
 
     def handle_arrival(self) -> None:
         # Create student
@@ -135,12 +154,28 @@ class SimulationController:
                 f"busy={st.busy_servers}/{st.servers}; end@{end_t:.2f}"
             )
         else:
-            st.queue.append(sid)
-            print(
-                f"  ARRIVAL Student {sid} -> Station {st.station_id}: queued; "
-                f"queue_len={st.queue_length()}; "
-                f"busy={st.busy_servers}/{st.servers}"
-            )
+            # --- Step 4: BalkingModel (optional via config) ---
+            balked = False
+            if self.cfg.balking_enabled:
+                wq_est = self._estimated_wait(st)
+                if wq_est > self.cfg.balk_tau and self.rng.random() < self.cfg.balk_p:
+                    self.metrics.record_balk()
+                    # Optional cleanup so self.students doesn't grow forever
+                    del self.students[sid]
+                    print(
+                        f"  BALK Student {sid} @ Station {st.station_id}: "
+                        f"estWq={wq_est:.2f} > tau={self.cfg.balk_tau:.2f} "
+                        f"(p={self.cfg.balk_p:.2f}) -> leaves"
+                    )
+                    balked = True
+
+            if not balked:
+                st.queue.append(sid)
+                print(
+                    f"  ARRIVAL Student {sid} -> Station {st.station_id}: queued; "
+                    f"queue_len={st.queue_length()}; "
+                    f"busy={st.busy_servers}/{st.servers}"
+                )
 
         # Schedule next arrival using piecewise λ(t)
         lam = self.lambda_at(self.current_time)

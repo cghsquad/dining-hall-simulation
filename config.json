@@ -10,5 +10,9 @@
 
   "num_stations": 3,
   "stations_servers": [2, 1, 3],
-  "routing_policy": "shortest_queue"
+  "routing_policy": "shortest_queue",
+
+  "balking_enabled": true,
+  "balk_tau": 3.0,
+  "balk_p": 0.50
 }
