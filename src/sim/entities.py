@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import random
 from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Deque, List
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .balking_model import BalkingModel
+    from .routing_policy import RoutingPolicy
 
 
 # ---------------------------------------------------------------------------
@@ -36,12 +41,11 @@ class Student:
     def choose_station(
         self,
         stations: dict[int, FoodStation],
-        policy: object,
-        rng: object,
+        policy: RoutingPolicy,
+        rng: random.Random,
     ) -> FoodStation:
         """Delegate to the routing policy. Matches UML chooseStation()."""
-        # policy is a RoutingPolicy; using `object` to avoid circular import
-        return policy.select_station(self, stations, rng)  # type: ignore[attr-defined]
+        return policy.select_station(self, stations, rng)
 
     def join_queue(self, station: FoodStation) -> None:
         """Enqueue self at the given station. Matches UML joinQueue()."""
@@ -49,10 +53,10 @@ class Student:
         self.station = station
         self.station_id = station.station_id
 
-    def should_leave(self, estimated_wait: float, model: object, rng: object) -> bool:
+    def should_leave(self, estimated_wait: float, model: BalkingModel, rng: random.Random) -> bool:
         """Delegate balking decision to the model. Matches UML shouldLeave()."""
         tau = self.wait_tolerance if self.wait_tolerance is not None else 0.0
-        return model.should_leave(estimated_wait, tau, rng)  # type: ignore[attr-defined]
+        return model.should_leave(estimated_wait, tau, rng)
 
     def leave_dining_hall(self) -> None:
         """Mark this student as having balked. Matches UML leaveDiningHall()."""
@@ -93,13 +97,13 @@ class FoodStation:
     station_id: int
     servers: int = 1                # c in M/M/c
     busy_servers: int = 0
-    queue: Deque[int] = field(default_factory=deque)   # student-ID queue
+    queue: deque[int] = field(default_factory=deque)   # student-ID queue
 
     # --- NEW fields (UML alignment) ---
     station_type: str = "default"
     service_rate_mu: float | None = None               # μ (customers/min); None → use global
     queue_discipline: QueueDiscipline = QueueDiscipline.FIFO
-    staff: List[Staff] = field(default_factory=list)
+    staff: list[Staff] = field(default_factory=list)
 
     # --- existing helpers ---
 

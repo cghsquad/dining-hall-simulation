@@ -3,9 +3,8 @@ from __future__ import annotations
 
 import random
 from abc import ABC, abstractmethod
-from typing import Dict, List
 
-from .entities import FoodStation
+from .entities import FoodStation, Student
 
 
 class RoutingPolicy(ABC):
@@ -13,7 +12,7 @@ class RoutingPolicy(ABC):
 
     @abstractmethod
     def select_station(
-        self, student: object, stations: Dict[int, FoodStation], rng: random.Random,
+        self, student: Student, stations: dict[int, FoodStation], rng: random.Random,
     ) -> FoodStation:
         """Choose a station for the arriving student."""
         ...
@@ -23,10 +22,10 @@ class ShortestQueuePolicy(RoutingPolicy):
     """Route to the station with the shortest queue (random tie-break)."""
 
     def select_station(
-        self, student: object, stations: Dict[int, FoodStation], rng: random.Random,
+        self, student: Student, stations: dict[int, FoodStation], rng: random.Random,
     ) -> FoodStation:
         min_len = min(st.queue_length() for st in stations.values())
-        candidates: List[int] = [
+        candidates: list[int] = [
             sid for sid, st in stations.items() if st.queue_length() == min_len
         ]
         return stations[rng.choice(candidates)]
@@ -39,11 +38,11 @@ class WeightedRandomPolicy(RoutingPolicy):
     weights maps station_id → relative weight (need not sum to 1).
     """
 
-    def __init__(self, weights: Dict[int, float]) -> None:
+    def __init__(self, weights: dict[int, float]) -> None:
         self.weights = weights
 
     def select_station(
-        self, student: object, stations: Dict[int, FoodStation], rng: random.Random,
+        self, student: Student, stations: dict[int, FoodStation], rng: random.Random,
     ) -> FoodStation:
         ids = list(stations.keys())
         w = [self.weights.get(sid, 1.0) for sid in ids]

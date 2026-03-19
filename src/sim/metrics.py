@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict
 
 from .entities import FoodStation, Student
 
@@ -10,22 +9,23 @@ from .entities import FoodStation, Student
 class Metrics:
     total_arrivals: int = 0
     total_departures: int = 0
+    total_service_starts: int = 0
     instant_balks: int = 0
     reneges: int = 0
     sum_wq: float = 0.0
     sum_w: float = 0.0
 
     # per-station busy time accumulation
-    busy_time: Dict[int, float] = field(default_factory=dict)
+    busy_time: dict[int, float] = field(default_factory=dict)
 
     # ---- recording methods ------------------------------------------------
 
-    def record_arrival(self, student: Student) -> None:
+    def record_arrival(self) -> None:
         self.total_arrivals += 1
 
-    def record_service_start(self, student: Student) -> None:
-        """Track service-start events (placeholder for future per-station breakdowns)."""
-        pass  # service_start_time is already set on the Student object
+    def record_service_start(self) -> None:
+        """Track service-start events."""
+        self.total_service_starts += 1
 
     def record_instant_balk(self) -> None:
         self.instant_balks += 1
@@ -42,7 +42,7 @@ class Metrics:
 
     # ---- continuous-time accumulation -------------------------------------
 
-    def accumulate_busy_time(self, stations: Dict[int, FoodStation], dt: float) -> None:
+    def accumulate_busy_time(self, stations: dict[int, FoodStation], dt: float) -> None:
         """Called on every time-jump in the DES loop: Δt × busy_servers."""
         if dt <= 0:
             return
@@ -55,9 +55,9 @@ class Metrics:
         """Throughput = departures / elapsed time."""
         return (self.total_departures / current_time) if current_time > 0 else 0.0
 
-    def estimate_utilization(self, stations: Dict[int, FoodStation], current_time: float) -> Dict[int, float]:
+    def estimate_utilization(self, stations: dict[int, FoodStation], current_time: float) -> dict[int, float]:
         """Per-station utilization ρ_i = busy_time_i / (c_i × T)."""
-        result: Dict[int, float] = {}
+        result: dict[int, float] = {}
         for st_id, st in stations.items():
             bt = self.busy_time.get(st_id, 0.0)
             denom = (st.servers * current_time) if current_time > 0 else 0.0
@@ -66,7 +66,7 @@ class Metrics:
 
     # ---- report -----------------------------------------------------------
 
-    def report(self, sim_duration: float, stations: Dict[int, FoodStation]) -> str:
+    def report(self, sim_duration: float, stations: dict[int, FoodStation]) -> str:
         avg_wq = self.sum_wq / self.total_departures if self.total_departures else 0.0
         avg_w = self.sum_w / self.total_departures if self.total_departures else 0.0
 

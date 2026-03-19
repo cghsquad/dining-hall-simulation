@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import heapq
 import random
-from typing import Dict, List
 
 from .arrival_model import PiecewisePoissonArrivalModel
 from .balking_model import BalkingModel, ThresholdBalkingModel, LogisticBalkingModel
@@ -40,7 +39,7 @@ class SimulationController:
 
         self.current_time: float = 0.0
         self.end_time: float = cfg.end_time
-        self.fel: List[Event] = []          # heapq priority queue
+        self.fel: list[Event] = []          # heapq priority queue
         self.rng = random.Random(cfg.seed)
 
         self.metrics = Metrics()
@@ -65,7 +64,7 @@ class SimulationController:
             else [cfg.service_time] * cfg.num_stations
         )
 
-        self.stations: Dict[int, FoodStation] = {}
+        self.stations: dict[int, FoodStation] = {}
         for i in range(cfg.num_stations):
             st = FoodStation(
                 station_id=i,
@@ -82,12 +81,11 @@ class SimulationController:
         if cfg.routing_policy == "shortest_queue":
             self.routing = ShortestQueuePolicy()
         elif cfg.routing_policy == "weighted_random":
-            weights: Dict[int, float] = {}
             if cfg.routing_weights is not None:
-                weights = {i: w for i, w in enumerate(cfg.routing_weights)}
+                w_map = {i: w for i, w in enumerate(cfg.routing_weights)}
             else:
-                weights = {i: 1.0 for i in range(cfg.num_stations)}
-            self.routing = WeightedRandomPolicy(weights)
+                w_map = {i: 1.0 for i in range(cfg.num_stations)}
+            self.routing = WeightedRandomPolicy(w_map)
         elif cfg.num_stations > 1 and cfg.routing_policy == "single":
             print("[WARN] num_stations > 1 but routing_policy='single'; all students go to station 0")
 
@@ -101,7 +99,7 @@ class SimulationController:
 
         # --- student bookkeeping ---
         self._next_student_id: int = 1
-        self.students: Dict[int, Student] = {}
+        self.students: dict[int, Student] = {}
 
         # --- global service params (fallback) ---
         self.service_time: float = cfg.service_time
@@ -124,7 +122,8 @@ class SimulationController:
         self.metrics.accumulate_busy_time(self.stations, dt)
         return e
 
-    def is_termination_condition_met(self, e: Event) -> bool:
+    @staticmethod
+    def is_termination_condition_met(e: Event) -> bool:
         return e.type == EventType.END_SIM
 
     # ------------------------------------------------------------------
@@ -211,7 +210,7 @@ class SimulationController:
     #  ARRIVAL handler
     # ------------------------------------------------------------------
 
-    def handle_arrival(self, e: Event | None = None) -> None:
+    def handle_arrival(self, _e: Event | None = None) -> None:
         sid = self._next_student_id
         self._next_student_id += 1
 
@@ -229,7 +228,7 @@ class SimulationController:
         s.station = st
 
         self.students[sid] = s
-        self.metrics.record_arrival(s)
+        self.metrics.record_arrival()
 
         queue_lens = [self.stations[i].queue_length() for i in sorted(self.stations)]
         busy = [
@@ -241,7 +240,7 @@ class SimulationController:
         # ---- server free → start service immediately ----
         if st.has_free_server():
             staff_obj = st.start_service(s, self.current_time)
-            self.metrics.record_service_start(s)
+            self.metrics.record_service_start()
             svc_dur = self._sample_service_time(st)
             end_t = self.current_time + svc_dur
             self.schedule(Event(
@@ -300,11 +299,11 @@ class SimulationController:
             return
         if e.student_id in self.students:
             s = self.students[e.student_id]
-            print(
-                f"  SERVICE_START Student {e.student_id} @ Station {e.station_id}: "
-                f"service_start_time={s.service_start_time:.2f}"
-                if s.service_start_time is not None else ""
-            )
+            if s.service_start_time is not None:
+                print(
+                    f"  SERVICE_START Student {e.student_id} @ Station {e.station_id}: "
+                    f"service_start_time={s.service_start_time:.2f}"
+                )
 
     # ------------------------------------------------------------------
     #  SERVICE_END handler
@@ -388,7 +387,7 @@ class SimulationController:
         """Start service for a student and schedule SERVICE_END."""
         s = self.students[sid]
         staff_obj = station.start_service(s, self.current_time)
-        self.metrics.record_service_start(s)
+        self.metrics.record_service_start()
 
         svc_dur = self._sample_service_time(station)
         end_t = self.current_time + svc_dur
