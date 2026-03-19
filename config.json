@@ -6,6 +6,7 @@
   "peak_start": 5.0,
   "peak_end": 12.0,
   "service_time": 2.0,
+  "service_dist": "exponential",
   "servers": 1,
 
   "num_stations": 3,
