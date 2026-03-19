@@ -160,10 +160,10 @@ class SimulationController:
             if self.cfg.balking_enabled:
                 wq_est = self._estimated_wait(st)
                 if wq_est > self.cfg.balk_tau and self.rng.random() < self.cfg.balk_p:
-                    self.metrics.record_balk()
+                    self.metrics.record_instant_balk()
                     del self.students[sid]
                     print(
-                        f"  BALK Student {sid} @ Station {st.station_id}: "
+                        f"  INSTANT_BALK Student {sid} @ Station {st.station_id}: "
                         f"estWq={wq_est:.2f} > tau={self.cfg.balk_tau:.2f} "
                         f"(p={self.cfg.balk_p:.2f}) -> leaves"
                     )
@@ -239,12 +239,12 @@ class SimulationController:
             # remove from queue (deque remove is OK for now)
             st.queue.remove(sid)
 
-            self.metrics.record_balk()
+            self.metrics.record_renege()
             # optional cleanup so students dict doesn't grow forever
             del self.students[sid]
 
             print(
-                f"  BALK Student {sid} @ Station {station_id}: "
+                f"  RENEGE Student {sid} @ Station {station_id}: "
                 f"waited={waited_so_far:.2f} >= tau={self.cfg.balk_tau:.2f} "
                 f"(p={self.cfg.balk_p:.2f}) -> leaves"
             )

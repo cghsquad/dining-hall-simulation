@@ -8,7 +8,8 @@ from .entities import FoodStation, Student
 class Metrics:
     total_arrivals: int = 0
     total_departures: int = 0
-    total_balks: int = 0
+    instant_balks: int = 0
+    reneges: int = 0
     sum_wq: float = 0.0
     sum_w: float = 0.0
 
@@ -18,8 +19,11 @@ class Metrics:
     def record_arrival(self) -> None:
         self.total_arrivals += 1
 
-    def record_balk(self) -> None:
-        self.total_balks += 1
+    def record_instant_balk(self) -> None:
+        self.instant_balks += 1
+
+    def record_renege(self) -> None:
+        self.reneges += 1
 
     def record_departure(self, s: Student) -> None:
         self.total_departures += 1
@@ -51,7 +55,8 @@ class Metrics:
 
         return (
                 f"arrivals={self.total_arrivals}, departures={self.total_departures}, "
-                f"balks={self.total_balks}, "
+                f"instant_balks={self.instant_balks}, reneges={self.reneges}, "
+                f"total_balks={self.instant_balks + self.reneges}, "
                 f"avgWq={avg_wq:.2f}, avgW={avg_w:.2f}, "
                 f"throughput={throughput:.3f}/min, "
                 + ", ".join(util_parts)
