@@ -1,6 +1,8 @@
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import Dict
+
 from .entities import FoodStation, Student
 
 
@@ -13,11 +15,17 @@ class Metrics:
     sum_wq: float = 0.0
     sum_w: float = 0.0
 
-    # NEW: per-station busy time accumulation
+    # per-station busy time accumulation
     busy_time: Dict[int, float] = field(default_factory=dict)
 
-    def record_arrival(self) -> None:
+    # ---- recording methods ------------------------------------------------
+
+    def record_arrival(self, student: Student) -> None:
         self.total_arrivals += 1
+
+    def record_service_start(self, student: Student) -> None:
+        """Track service-start events (placeholder for future per-station breakdowns)."""
+        pass  # service_start_time is already set on the Student object
 
     def record_instant_balk(self) -> None:
         self.instant_balks += 1
@@ -32,32 +40,46 @@ class Metrics:
         self.sum_wq += wait_in_queue
         self.sum_w += total_wait
 
-    # NEW: called whenever time advances in the DES loop
+    # ---- continuous-time accumulation -------------------------------------
+
     def accumulate_busy_time(self, stations: Dict[int, FoodStation], dt: float) -> None:
+        """Called on every time-jump in the DES loop: Δt × busy_servers."""
         if dt <= 0:
             return
         for st_id, st in stations.items():
             self.busy_time[st_id] = self.busy_time.get(st_id, 0.0) + (st.busy_servers * dt)
 
-    # NEW: utilization + throughput in report
+    # ---- standalone metric methods (match UML) ----------------------------
+
+    def compute_throughput(self, current_time: float) -> float:
+        """Throughput = departures / elapsed time."""
+        return (self.total_departures / current_time) if current_time > 0 else 0.0
+
+    def estimate_utilization(self, stations: Dict[int, FoodStation], current_time: float) -> Dict[int, float]:
+        """Per-station utilization ρ_i = busy_time_i / (c_i × T)."""
+        result: Dict[int, float] = {}
+        for st_id, st in stations.items():
+            bt = self.busy_time.get(st_id, 0.0)
+            denom = (st.servers * current_time) if current_time > 0 else 0.0
+            result[st_id] = (bt / denom) if denom > 0 else 0.0
+        return result
+
+    # ---- report -----------------------------------------------------------
+
     def report(self, sim_duration: float, stations: Dict[int, FoodStation]) -> str:
         avg_wq = self.sum_wq / self.total_departures if self.total_departures else 0.0
         avg_w = self.sum_w / self.total_departures if self.total_departures else 0.0
 
-        throughput = (self.total_departures / sim_duration) if sim_duration > 0 else 0.0
+        throughput = self.compute_throughput(sim_duration)
+        utilization = self.estimate_utilization(stations, sim_duration)
 
-        util_parts = []
-        for st_id, st in stations.items():
-            bt = self.busy_time.get(st_id, 0.0)
-            denom = (st.servers * sim_duration) if sim_duration > 0 else 0.0
-            rho = (bt / denom) if denom > 0 else 0.0
-            util_parts.append(f"rho[{st_id}]={rho:.3f}")
+        util_parts = [f"rho[{sid}]={rho:.3f}" for sid, rho in utilization.items()]
 
         return (
-                f"arrivals={self.total_arrivals}, departures={self.total_departures}, "
-                f"instant_balks={self.instant_balks}, reneges={self.reneges}, "
-                f"total_balks={self.instant_balks + self.reneges}, "
-                f"avgWq={avg_wq:.2f}, avgW={avg_w:.2f}, "
-                f"throughput={throughput:.3f}/min, "
-                + ", ".join(util_parts)
+            f"arrivals={self.total_arrivals}, departures={self.total_departures}, "
+            f"instant_balks={self.instant_balks}, reneges={self.reneges}, "
+            f"total_balks={self.instant_balks + self.reneges}, "
+            f"avgWq={avg_wq:.2f}, avgW={avg_w:.2f}, "
+            f"throughput={throughput:.3f}/min, "
+            + ", ".join(util_parts)
         )
