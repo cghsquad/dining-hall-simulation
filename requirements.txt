@@ -1,3 +1,20 @@
 # requirements.txt
-# Standard library only for M2 (heapq, random, dataclasses, enum, statistics)
-pip~=23.2.1
+# Dining Hall Simulation (CS 4632 - Milestone 3)
+#
+# This project uses only the Python standard library:
+#   heapq       - Future Event List (priority queue)
+#   random      - RNG for interarrival/service sampling
+#   dataclasses - Entity/config data structures
+#   enum        - EventType, QueueDiscipline enums
+#   json        - Config loading and output export
+#   csv         - Events and timeseries CSV export
+#   time        - Wall-clock execution timing
+#   math        - Logistic balking model (exp function)
+#   pathlib     - File path handling
+#   collections - deque for station queues
+#   abc         - Abstract base classes (ArrivalModel, BalkingModel, RoutingPolicy)
+#   argparse    - CLI argument parsing
+#
+# No external packages required. Python 3.10+ needed for:
+#   - X | None union type syntax (with from __future__ import annotations)
+#   - Builtin generics (list[int], dict[str, float])
