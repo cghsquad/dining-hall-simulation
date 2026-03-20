@@ -6,6 +6,7 @@ import random
 from .arrival_model import PiecewisePoissonArrivalModel
 from .balking_model import BalkingModel, ThresholdBalkingModel, LogisticBalkingModel
 from .config import SimConfig
+from .data_collector import DataCollector
 from .entities import FoodStation, Staff, Student
 from .event import Event, EventType
 from .metrics import Metrics
@@ -33,7 +34,7 @@ class SimulationController:
     #  Initialisation
     # ------------------------------------------------------------------
 
-    def __init__(self, cfg: SimConfig) -> None:
+    def __init__(self, cfg: SimConfig, outdir: str = "outputs", run_id: str = "001", config_path: str = "") -> None:
         cfg.validate()
         self.cfg = cfg
 
@@ -43,6 +44,8 @@ class SimulationController:
         self.rng = random.Random(cfg.seed)
 
         self.metrics = Metrics()
+        self.config_path = config_path
+        self.collector = DataCollector(outdir=outdir, run_id=run_id, seed=cfg.seed)
 
         # --- arrival model ---
         self.arrival_model = PiecewisePoissonArrivalModel(
@@ -120,6 +123,10 @@ class SimulationController:
         self.current_time = e.time
         dt = self.current_time - prev_time
         self.metrics.accumulate_busy_time(self.stations, dt)
+        # periodic time-series snapshot
+        self.collector.maybe_snapshot(
+            self.current_time, self.stations, self.metrics, self.metrics.busy_time,
+        )
         return e
 
     @staticmethod
@@ -136,6 +143,7 @@ class SimulationController:
         self.schedule(Event(time=0.0, type=EventType.ARRIVAL))
         self.schedule(Event(time=self.end_time, type=EventType.END_SIM))
 
+        self.collector.start_timer()
         print(f"=== START SIM end_time={self.end_time} seed={self.cfg.seed} ===")
 
         while self.fel:
@@ -146,6 +154,10 @@ class SimulationController:
             print(f"[POP] t={self.current_time:.2f} type={e.type.name} student={e.student_id}")
 
             if self.is_termination_condition_met(e):
+                self.collector.log_event(
+                    self.current_time, "END_SIM", self.stations,
+                    details="simulation terminated",
+                )
                 print("=== END_SIM event reached ===")
                 break
 
@@ -159,12 +171,25 @@ class SimulationController:
             elif e.type == EventType.BALK_CHECK:
                 self.handle_balk_check(e)
 
+        self.collector.stop_timer()
         self.collect_metrics()
 
     def collect_metrics(self) -> None:
-        """Print final metrics summary."""
+        """Print final metrics summary and write output files."""
         print("=== FINAL METRICS ===")
         print(self.metrics.report(sim_duration=self.end_time, stations=self.stations))
+        print(f"  execution_time={self.collector.execution_time:.4f}s")
+
+        # write CSV + JSON output files
+        paths = self.collector.write_all(
+            metrics=self.metrics,
+            stations=self.stations,
+            sim_duration=self.end_time,
+            seed=self.cfg.seed,
+            config_path=self.config_path,
+        )
+        for label, p in paths.items():
+            print(f"  wrote {label}: {p}")
 
     # ------------------------------------------------------------------
     #  Service-time sampling
@@ -247,6 +272,11 @@ class SimulationController:
                 time=end_t, type=EventType.SERVICE_END,
                 student_id=sid, station_id=st.station_id, staff=staff_obj,
             ))
+            self.collector.log_event(
+                self.current_time, "ARRIVAL", self.stations,
+                student_id=sid, station_id=st.station_id,
+                details=f"immediate service; end@{end_t:.2f}",
+            )
             print(
                 f"  ARRIVAL Student {sid} -> Station {st.station_id}: start service immediately; "
                 f"busy={st.busy_servers}/{st.servers}; end@{end_t:.2f}"
@@ -259,6 +289,11 @@ class SimulationController:
                     s.leave_dining_hall()
                     self.metrics.record_instant_balk()
                     del self.students[sid]
+                    self.collector.log_event(
+                        self.current_time, "INSTANT_BALK", self.stations,
+                        student_id=sid, station_id=st.station_id,
+                        details=f"estWq={wq_est:.2f} > tau={self.cfg.balk_tau:.2f}",
+                    )
                     print(
                         f"  INSTANT_BALK Student {sid} @ Station {st.station_id}: "
                         f"estWq={wq_est:.2f} > tau={self.cfg.balk_tau:.2f} "
@@ -269,6 +304,12 @@ class SimulationController:
 
             # ---- enqueue ----
             s.join_queue(st)
+            self.metrics.record_queue_depth(self.stations)
+            self.collector.log_event(
+                self.current_time, "ARRIVAL", self.stations,
+                student_id=sid, station_id=st.station_id,
+                details=f"queued; queue_len={st.queue_length()}",
+            )
             print(
                 f"  ARRIVAL Student {sid} -> Station {st.station_id}: queued; "
                 f"queue_len={st.queue_length()}; "
@@ -330,6 +371,11 @@ class SimulationController:
 
         wq = (s.service_start_time - s.arrival_time) if s.service_start_time is not None else 0.0
         w = s.departure_time - s.arrival_time
+        self.collector.log_event(
+            self.current_time, "SERVICE_END", self.stations,
+            student_id=e.student_id, station_id=e.station_id,
+            details=f"Wq={wq:.2f}, W={w:.2f}",
+        )
         print(
             f"  SERVICE_END Student {e.student_id} @ Station {e.station_id}: "
             f"Wq={wq:.2f}, W={w:.2f}; "
@@ -373,6 +419,11 @@ class SimulationController:
             s.leave_dining_hall()
             self.metrics.record_renege()
             del self.students[e.student_id]
+            self.collector.log_event(
+                self.current_time, "RENEGE", self.stations,
+                student_id=e.student_id, station_id=e.station_id,
+                details=f"waited={waited_so_far:.2f} >= tau={self.cfg.balk_tau:.2f}",
+            )
             print(
                 f"  RENEGE Student {e.student_id} @ Station {e.station_id}: "
                 f"waited={waited_so_far:.2f} >= tau={self.cfg.balk_tau:.2f} "
@@ -395,6 +446,11 @@ class SimulationController:
             time=end_t, type=EventType.SERVICE_END,
             student_id=sid, station_id=station.station_id, staff=staff_obj,
         ))
+        self.collector.log_event(
+            self.current_time, "SERVICE_START", self.stations,
+            student_id=sid, station_id=station.station_id,
+            details=f"from queue; end@{end_t:.2f}",
+        )
         print(
             f"  start service Student {sid} @ Station {station.station_id}; "
             f"queue_len={station.queue_length()}; "

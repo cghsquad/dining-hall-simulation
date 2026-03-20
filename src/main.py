@@ -25,7 +25,7 @@ def main() -> None:
     # Save snapshot (unique per run_id + seed)
     save_config_snapshot(cfg, f"{args.outdir}/run_{args.run_id}_seed{cfg.seed}_config.json")
 
-    sim = SimulationController(cfg)
+    sim = SimulationController(cfg, outdir=args.outdir, run_id=args.run_id, config_path=args.config or "")
     sim.run_simulation(end_time=cfg.end_time)
 
 

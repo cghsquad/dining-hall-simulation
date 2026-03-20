@@ -15,6 +15,13 @@ class Metrics:
     sum_wq: float = 0.0
     sum_w: float = 0.0
 
+    # min / max observations
+    min_wq: float = float("inf")
+    max_wq: float = 0.0
+    min_w: float = float("inf")
+    max_w: float = 0.0
+    max_queue_depth: int = 0
+
     # per-station busy time accumulation
     busy_time: dict[int, float] = field(default_factory=dict)
 
@@ -39,6 +46,16 @@ class Metrics:
         total_wait = (s.departure_time - s.arrival_time) if s.departure_time is not None else 0.0
         self.sum_wq += wait_in_queue
         self.sum_w += total_wait
+        # min / max tracking
+        self.min_wq = min(self.min_wq, wait_in_queue)
+        self.max_wq = max(self.max_wq, wait_in_queue)
+        self.min_w = min(self.min_w, total_wait)
+        self.max_w = max(self.max_w, total_wait)
+
+    def record_queue_depth(self, stations: dict[int, FoodStation]) -> None:
+        """Track the maximum queue depth across all stations."""
+        for st in stations.values():
+            self.max_queue_depth = max(self.max_queue_depth, st.queue_length())
 
     # ---- continuous-time accumulation -------------------------------------
 
@@ -70,6 +87,10 @@ class Metrics:
         avg_wq = self.sum_wq / self.total_departures if self.total_departures else 0.0
         avg_w = self.sum_w / self.total_departures if self.total_departures else 0.0
 
+        # clamp inf → 0 when no departures recorded
+        min_wq = self.min_wq if self.min_wq != float("inf") else 0.0
+        min_w = self.min_w if self.min_w != float("inf") else 0.0
+
         throughput = self.compute_throughput(sim_duration)
         utilization = self.estimate_utilization(stations, sim_duration)
 
@@ -79,7 +100,9 @@ class Metrics:
             f"arrivals={self.total_arrivals}, departures={self.total_departures}, "
             f"instant_balks={self.instant_balks}, reneges={self.reneges}, "
             f"total_balks={self.instant_balks + self.reneges}, "
-            f"avgWq={avg_wq:.2f}, avgW={avg_w:.2f}, "
+            f"avgWq={avg_wq:.2f}, minWq={min_wq:.2f}, maxWq={self.max_wq:.2f}, "
+            f"avgW={avg_w:.2f}, minW={min_w:.2f}, maxW={self.max_w:.2f}, "
+            f"maxQueueDepth={self.max_queue_depth}, "
             f"throughput={throughput:.3f}/min, "
             + ", ".join(util_parts)
         )
