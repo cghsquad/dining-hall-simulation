@@ -111,12 +111,12 @@ done
 
 ### CLI Flags
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--config` | Path to JSON config file | `config.json` |
-| `--seed` | Override RNG seed | from config |
-| `--run_id` | Identifier for output filenames | `001` |
-| `--outdir` | Output directory | `outputs` |
+| Flag       | Description                     | Default       |
+|------------|---------------------------------|---------------|
+| `--config` | Path to JSON config file        | `config.json` |
+| `--seed`   | Override RNG seed               | from config   |
+| `--run_id` | Identifier for output filenames | `001`         |
+| `--outdir` | Output directory                | `outputs`     |
 
 ---
 
@@ -124,12 +124,12 @@ done
 
 Each run produces 4 files in the output directory:
 
-| File | Format | Contents |
-|------|--------|----------|
-| `run_XXX_seedN_events.csv` | CSV | One row per event (arrival, service, balk, etc.) |
-| `run_XXX_seedN_timeseries.csv` | CSV | Periodic state snapshots every 0.5 sim minutes |
-| `run_XXX_seedN_summary.json` | JSON | Aggregate statistics (avg/min/max Wq/W, throughput, utilization) |
-| `run_XXX_seedN_config.json` | JSON | Parameters used for this run |
+| File                           | Format | Contents                                                         |
+|--------------------------------|--------|------------------------------------------------------------------|
+| `run_XXX_seedN_events.csv`     | CSV    | One row per event (arrival, service, balk, etc.)                 |
+| `run_XXX_seedN_timeseries.csv` | CSV    | Periodic state snapshots every 0.5 sim minutes                   |
+| `run_XXX_seedN_summary.json`   | JSON   | Aggregate statistics (avg/min/max Wq/W, throughput, utilization) |
+| `run_XXX_seedN_config.json`    | JSON   | Parameters used for this run                                     |
 
 A master `run_index.json` is appended after each run, linking all runs to their output files.
 
@@ -162,40 +162,40 @@ docs/
 
 See `docs/config_reference.txt` for the full parameter reference. Quick overview:
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `seed` | int | RNG seed for reproducibility |
-| `end_time` | float | Simulation duration (minutes) |
-| `lambda_off` / `lambda_peak` | float | Arrival rates outside/during peak (students/min) |
-| `peak_start` / `peak_end` | float | Peak period window (sim minutes) |
-| `service_time` | float | Mean service time (minutes) |
-| `service_dist` | string | `"exponential"` (M/M/c) or `"deterministic"` (M/D/c) |
-| `num_stations` | int | Number of food stations |
-| `stations_servers` | [int] | Server count per station (e.g. `[1, 1, 1]`) |
-| `stations_service_time` | [float] | Optional per-station service time override |
-| `routing_policy` | string | `"shortest_queue"`, `"weighted_random"`, or `"single"` |
-| `balking_enabled` | bool | Enable/disable balking system |
-| `balking_model` | string | `"threshold"` or `"logistic"` |
-| `balk_tau` | float | Patience threshold (minutes) |
-| `balk_p` | float | Leave probability (threshold model, 0.0-1.0) |
-| `balk_k` | float | Logistic steepness (logistic model) |
+| Parameter                    | Type    | Description                                            |
+|------------------------------|---------|--------------------------------------------------------|
+| `seed`                       | int     | RNG seed for reproducibility                           |
+| `end_time`                   | float   | Simulation duration (minutes)                          |
+| `lambda_off` / `lambda_peak` | float   | Arrival rates outside/during peak (students/min)       |
+| `peak_start` / `peak_end`    | float   | Peak period window (sim minutes)                       |
+| `service_time`               | float   | Mean service time (minutes)                            |
+| `service_dist`               | string  | `"exponential"` (M/M/c) or `"deterministic"` (M/D/c)   |
+| `num_stations`               | int     | Number of food stations                                |
+| `stations_servers`           | [int]   | Server count per station (e.g. `[1, 1, 1]`)            |
+| `stations_service_time`      | [float] | Optional per-station service time override             |
+| `routing_policy`             | string  | `"shortest_queue"`, `"weighted_random"`, or `"single"` |
+| `balking_enabled`            | bool    | Enable/disable balking system                          |
+| `balking_model`              | string  | `"threshold"` or `"logistic"`                          |
+| `balk_tau`                   | float   | Patience threshold (minutes)                           |
+| `balk_p`                     | float   | Leave probability (threshold model, 0.0-1.0)           |
+| `balk_k`                     | float   | Logistic steepness (logistic model)                    |
 
 ---
 
 ## Preset Configs
 
-| Run | File | Purpose |
-|-----|------|---------|
-| 001 | `run_001_baseline.json` | Baseline defaults |
-| 002 | `run_002_high_traffic.json` | High arrival rate |
-| 003 | `run_003_fast_service.json` | Low service time |
-| 004 | `run_004_deterministic.json` | M/D/c service model |
-| 005 | `run_005_logistic_balk.json` | Logistic balking model |
-| 006 | `run_006_weighted_random.json` | Weighted random routing |
-| 007 | `run_007_no_balking.json` | Balking disabled |
-| 008 | `run_008_single_station.json` | Single station (M/M/3) |
-| 009 | `run_009_stress_test.json` | High load, 4 stations |
-| 010 | `run_010_per_station_mu.json` | Per-station service rates |
+| Run | File                           | Purpose                   |
+|-----|--------------------------------|---------------------------|
+| 001 | `run_001_baseline.json`        | Baseline defaults         |
+| 002 | `run_002_high_traffic.json`    | High arrival rate         |
+| 003 | `run_003_fast_service.json`    | Low service time          |
+| 004 | `run_004_deterministic.json`   | M/D/c service model       |
+| 005 | `run_005_logistic_balk.json`   | Logistic balking model    |
+| 006 | `run_006_weighted_random.json` | Weighted random routing   |
+| 007 | `run_007_no_balking.json`      | Balking disabled          |
+| 008 | `run_008_single_station.json`  | Single station (M/M/3)    |
+| 009 | `run_009_stress_test.json`     | High load, 4 stations     |
+| 010 | `run_010_per_station_mu.json`  | Per-station service rates |
 
 ---
 
