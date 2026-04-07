@@ -228,6 +228,10 @@ class DataCollector:
                 f"station_{sid}": round(rho, 4)
                 for sid, rho in utilization.items()
             },
+            "per_station_avg_Wq": {
+                f"station_{sid}": round(wq, 4)
+                for sid, wq in metrics.per_station_avg_wq().items()
+            },
             "queue_depth": {
                 "max_queue_length": metrics.max_queue_depth,
             },

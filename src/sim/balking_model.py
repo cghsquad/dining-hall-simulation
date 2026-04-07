@@ -30,12 +30,12 @@ class ThresholdBalkingModel(BalkingModel):
         self.p_leave = p_leave
 
     def leave_probability(self, estimated_wait: float, tau: float) -> float:
-        if estimated_wait > tau:
+        if estimated_wait >= tau:
             return self.p_leave
         return 0.0
 
     def should_leave(self, estimated_wait: float, tau: float, rng: random.Random) -> bool:
-        return estimated_wait > tau and rng.random() < self.p_leave
+        return estimated_wait >= tau and rng.random() < self.p_leave
 
 
 class LogisticBalkingModel(BalkingModel):

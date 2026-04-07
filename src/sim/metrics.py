@@ -25,6 +25,10 @@ class Metrics:
     # per-station busy time accumulation
     busy_time: dict[int, float] = field(default_factory=dict)
 
+    # per-station Wq tracking (for routing policy comparison)
+    station_sum_wq: dict[int, float] = field(default_factory=dict)
+    station_departures: dict[int, int] = field(default_factory=dict)
+
     # ---- recording methods ------------------------------------------------
 
     def record_arrival(self) -> None:
@@ -51,6 +55,10 @@ class Metrics:
         self.max_wq = max(self.max_wq, wait_in_queue)
         self.min_w = min(self.min_w, total_wait)
         self.max_w = max(self.max_w, total_wait)
+        # per-station Wq tracking
+        sid = s.station_id
+        self.station_sum_wq[sid] = self.station_sum_wq.get(sid, 0.0) + wait_in_queue
+        self.station_departures[sid] = self.station_departures.get(sid, 0) + 1
 
     def record_queue_depth(self, stations: dict[int, FoodStation]) -> None:
         """Track the maximum queue depth across all stations."""
@@ -81,6 +89,14 @@ class Metrics:
             result[st_id] = (bt / denom) if denom > 0 else 0.0
         return result
 
+    def per_station_avg_wq(self) -> dict[int, float]:
+        """Per-station average Wq for routing policy comparison."""
+        result: dict[int, float] = {}
+        for sid, total in self.station_sum_wq.items():
+            deps = self.station_departures.get(sid, 0)
+            result[sid] = (total / deps) if deps > 0 else 0.0
+        return result
+
     # ---- report -----------------------------------------------------------
 
     def report(self, sim_duration: float, stations: dict[int, FoodStation]) -> str:
@@ -95,6 +111,8 @@ class Metrics:
         utilization = self.estimate_utilization(stations, sim_duration)
 
         util_parts = [f"rho[{sid}]={rho:.3f}" for sid, rho in utilization.items()]
+        per_wq = self.per_station_avg_wq()
+        wq_parts = [f"Wq[{sid}]={wq:.2f}" for sid, wq in per_wq.items()]
 
         return (
             f"arrivals={self.total_arrivals}, departures={self.total_departures}, "
@@ -104,5 +122,6 @@ class Metrics:
             f"avgW={avg_w:.2f}, minW={min_w:.2f}, maxW={self.max_w:.2f}, "
             f"maxQueueDepth={self.max_queue_depth}, "
             f"throughput={throughput:.3f}/min, "
-            + ", ".join(util_parts)
+            + ", ".join(util_parts) + ", "
+            + ", ".join(wq_parts)
         )
