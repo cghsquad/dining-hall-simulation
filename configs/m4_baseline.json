@@ -1,0 +1,16 @@
+{
+  "seed": 1,
+  "end_time": 30.0,
+  "lambda_off": 0.40,
+  "lambda_peak": 2.00,
+  "peak_start": 5.0,
+  "peak_end": 18.0,
+  "service_time": 2.5,
+  "service_dist": "exponential",
+  "num_stations": 3,
+  "stations_servers": [1, 1, 1],
+  "routing_policy": "shortest_queue",
+  "balking_enabled": true,
+  "balk_tau": 4.0,
+  "balk_p": 0.40
+}
